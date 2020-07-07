@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jan 28 19:43:56 2018
+Created on Sat Jun 13 17:36:36 2020
 
 @author: harshitm
 """
@@ -28,7 +28,7 @@ def get_word_counts(words):
         word_counts[word] = word_counts.get(word, 0.0) + 1.0
     return word_counts
         
-def train_model(x, y, modi):
+def train_model(x, y, modi, use_bigrams):
     vocab_dict = {}
     word_count_labels = {}
     theta_words = {}
@@ -60,6 +60,9 @@ def train_model(x, y, modi):
         #tokens = nltk.word_tokenize(line)
         line = line.lower()
         tokens = re.split("\W+", line)
+        if(use_bigrams == 1):
+            bigrams = [' '.join(b) for b in zip(tokens[:-1], tokens[1:])]
+            tokens = bigrams
         word_count = get_word_counts(tokens)
         for word, count in word_count.items():
             if word not in vocab_dict:
@@ -134,8 +137,18 @@ def classify_majority(x, labels_count, modi, train):
     cpickle.dump(result, fileObj)  
     return result
 
-""" accuracy train = 78.15, test = 40.33% """    
-def naive_bayes_classifier(x, log_labels_prior, theta_words, vocab_dict, modi, train):
+""" 
+with bigrams:
+    accuracy:
+    train = 99.0%
+    test = 38.8%
+without bigrams:
+    accuracy:
+    train = 70.15%
+    test = 39.5% 
+
+"""    
+def naive_bayes_classifier(x, log_labels_prior, theta_words, vocab_dict, modi, train, use_bigrams):
     if(modi):
         if(train):
             file_nv_c_name = "objs/nv_c_res_modi_train"
@@ -155,7 +168,10 @@ def naive_bayes_classifier(x, log_labels_prior, theta_words, vocab_dict, modi, t
     for line in x:
         #tokens = nltk.word_tokenize(line)
         #line = line.lower()
-        #tokens = re.split("\W+", line)
+        tokens = re.split("\W+", line)
+        if(use_bigrams):
+            bigrams = [' '.join(b) for b in zip(tokens[:-1], tokens[1:])]
+            tokens = bigrams
         class_label_score = {1:0, 2:0, 3:0, 4:0, 7:0, 8:0, 9:0, 10:0}
         word_count = get_word_counts(tokens)
         for word, count in word_count.items():
@@ -174,13 +190,13 @@ def naive_bayes_classifier(x, log_labels_prior, theta_words, vocab_dict, modi, t
     cpickle.dump(result, fileObj)    
     return result
 
-def prediction(x, log_labels_prior, theta_words, vocab_dict, labels_count, classifier, modi, train):
+def prediction(x, log_labels_prior, theta_words, vocab_dict, labels_count, classifier, modi, train, use_bigrams):
     if classifier == 1:
         result = classify_random(x, modi, train)
     elif classifier == 2:
         result = classify_majority(x, labels_count, modi, train)
     elif classifier == 3:
-        result = naive_bayes_classifier(x, log_labels_prior, theta_words, vocab_dict, modi, train)
+        result = naive_bayes_classifier(x, log_labels_prior, theta_words, vocab_dict, modi, train, use_bigrams)
 
     return np.array(result)
 
@@ -190,7 +206,7 @@ def find_accuracy(y, result):
     for i in range(0,N):
         if y[i] == result[i]:
             sum += 1
-    return sum/N
+    return ((sum/N)*100)
     
 def create_conf_matrix(expected, predicted):
     conf_mat = np.zeros((11,11), dtype = int)
@@ -208,25 +224,26 @@ def create_conf_matrix(expected, predicted):
     return conf_mat
     
 def main():
-    x_train_file = "imdb_rev\imdb_train_text_modified.txt"
-    y_train_file = "imdb_rev\imdb_train_labels.txt"
-    x_test_file = "imdb_rev\imdb_test_text_modified.txt"
-    y_test_file = "imdb_rev\imdb_test_labels.txt"
+    x_train_file = "./datasets/imdb_mod/imdb_train_text.txt"
+    y_train_file = "./datasets/imdb/imdb_train_labels.txt"
+    x_test_file = "./datasets/imdb_mod/imdb_test_text.txt"
+    y_test_file = "./datasets/imdb/imdb_test_labels.txt"
     start_time = time.time()
     X_train, Y_train = get_data(x_train_file, y_train_file)
     X_test, Y_test = get_data(x_test_file, y_test_file)
-    log_labels_prior, theta_words, vocab_dict, labels_count = train_model(X_train, Y_train, 1)
+    log_labels_prior, theta_words, vocab_dict, labels_count = train_model(X_train, Y_train, 1, 0)
     """
     classifier:
     1.-> random classifier
     2. -> majority classifier
     3. -> naive bayes classifier
     """
-    result = prediction(X_train, log_labels_prior,theta_words, vocab_dict, labels_count, 3, 1, 1) #classifier, modi, train
-    accuracy = find_accuracy(Y_train, result)
-    print(("{0:.4f}".format(accuracy)))
+    result = prediction(X_test, log_labels_prior,theta_words, vocab_dict, labels_count, 3, 0, 0, 0) #classifier, modi, train
+    accuracy = find_accuracy(Y_test, result)
+    print(("Accuracy : {0:.2f}%".format(accuracy)))
     print("--- %s seconds ---" % (time.time() - start_time))
     conf_mat = create_conf_matrix(result , Y_train)
+    print("\n Confusion Matrix : \n")
     print(conf_mat)
     
 if __name__ == "__main__":
