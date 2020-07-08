@@ -10,3 +10,7 @@
 * Will draw the confusion matrix for the results.
 
 
+# Author 
+ * [Harshit Monish](https://github.com/harshitmonish)
+ 
+## Course Project Under [Prof. Parag Singla](http://www.cse.iitd.ernet.in/~parags/)
